@@ -72,10 +72,18 @@ public class Repository {
                 );
                 """;
 
+        String createConfigTable = """
+                CREATE TABLE IF NOT EXISTS app_config (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+                """;
+
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createUserTable);
             stmt.execute(createRoomTable);
             stmt.execute(createBookingTable);
+            stmt.execute(createConfigTable);
             System.out.println("Tables created successfully.");
         } catch (SQLException e) {
             System.out.println("Error creating tables: " + e.getMessage());
@@ -196,6 +204,31 @@ public class Repository {
             return null;
         }
     }
+    // Add to the USER METHODS section
+
+    public String getAdminPasswordHash() {
+        String sql = "SELECT value FROM app_config WHERE key = 'admin_password_hash'";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getString("value");
+        } catch (SQLException e) {
+            System.out.println("Error fetching admin password: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public void setAdminPasswordHash(String hash) {
+        String sql = "INSERT INTO app_config (key, value) VALUES ('admin_password_hash', ?) " +
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, hash);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error saving admin password: " + e.getMessage());
+        }
+    }
+
+
 
     // ─────────────────────────────────────────
     // ROOM METHODS
