@@ -4,7 +4,10 @@ import java.sql.*;
 
 public class Repository {
 
-    private static final String DB_URL = "jdbc:sqlite:C:\\Users\\Administrator\\IdeaProjects\\CoworkingSpaceHub.db";
+    // Portable path — creates the .db file next to wherever the app is run from.
+    // Change this to an absolute path if you prefer a fixed location, e.g.:
+    //   "jdbc:sqlite:/home/user/CoworkingSpaceHub.db"
+    private static final String DB_URL = "jdbc:sqlite:CoworkingSpaceHub.db";
     private Connection connection;
 
     // ─────────────────────────────────────────
@@ -95,8 +98,8 @@ public class Repository {
     // ─────────────────────────────────────────
 
     public void migrateBookingsTable() {
-        addColumnIfMissing("bookings", "duration",   "INTEGER NOT NULL DEFAULT 60");
-        addColumnIfMissing("bookings", "totalPrice", "REAL NOT NULL DEFAULT 0.0");
+        addColumnIfMissing("bookings", "duration",     "INTEGER NOT NULL DEFAULT 60");
+        addColumnIfMissing("bookings", "totalPrice",   "REAL NOT NULL DEFAULT 0.0");
         addColumnIfMissing("rooms",    "pricePerHour", "REAL NOT NULL DEFAULT 0.0");
     }
 
@@ -204,7 +207,6 @@ public class Repository {
             return null;
         }
     }
-    // Add to the USER METHODS section
 
     public String getAdminPasswordHash() {
         String sql = "SELECT value FROM app_config WHERE key = 'admin_password_hash'";
@@ -227,8 +229,6 @@ public class Repository {
             System.out.println("Error saving admin password: " + e.getMessage());
         }
     }
-
-
 
     // ─────────────────────────────────────────
     // ROOM METHODS
@@ -430,6 +430,36 @@ public class Repository {
             System.out.println("Error printing rooms table: " + e.getMessage());
         }
         System.out.println("╚═════════╩══════════════════════╩══════════════════╩══════════╩══════════════════╩═════════════╝");
+    }
+
+    public void printIncomeStatement() {
+        String sql = "SELECT COUNT(*) as totalBookings, SUM(totalPrice) as totalRevenue " +
+                "FROM bookings WHERE status = 'active'";
+
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            if (rs.next()) {
+                int totalBookings    = rs.getInt("totalBookings");
+                double totalRevenue  = rs.getDouble("totalRevenue");
+
+                // VAT extracted from total (12% inclusive formula: VAT = total - total/1.12)
+                double totalVAT      = totalRevenue - (totalRevenue / 1.12);
+                double netIncome     = totalRevenue - totalVAT;
+
+                System.out.println("\n╔══════════════════════════════════════════════╗");
+                System.out.println(  "║           INCOME STATEMENT                   ║");
+                System.out.println(  "╠══════════════════════════════════════════════╣");
+                System.out.printf(   "║  Total Active Bookings  : %-18d ║%n", totalBookings);
+                System.out.printf(   "║  Total Revenue          : PHP %-14.2f ║%n", totalRevenue);
+                System.out.printf(   "║  VAT Collected (12%%)    : PHP %-14.2f ║%n", totalVAT);
+                System.out.printf(   "║  Net Income             : PHP %-14.2f ║%n", netIncome);
+                System.out.println(  "╚══════════════════════════════════════════════╝");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error generating income statement: " + e.getMessage());
+        }
     }
 
     public void printAllRoomsTable() {
