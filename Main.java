@@ -11,7 +11,7 @@ public class Main {
     private static final AuthenticationService authService;
     private static int loggedInUserId;
     private static String loggedInUserName;
-    private static final String ADMIN_PASSWORD = "admin123";
+
 
     public Main() {
     }
@@ -21,6 +21,11 @@ public class Main {
         repo.createTables();
         repo.migrateBookingsTable();
         repo.seedRooms();
+
+        if (!authService.adminPasswordExists()) {
+            authService.setAdminPassword("admin123"); // hashed on first run, changeable after
+            System.out.println("Default admin password initialized.");
+        }
 
         int choice;
         do {
@@ -163,28 +168,27 @@ public class Main {
 
     private static String getNameFromDb(String email) {
         ResultSet rs = repo.getUserByEmail(email);
-
         try {
             if (rs != null && rs.next()) {
                 return rs.getString("name");
             }
         } catch (SQLException e) {
             System.out.println("Error fetching user name: " + e.getMessage());
+        } finally {
+            try { if (rs != null) rs.close(); } catch (SQLException e) { }
         }
-
         return "User";
     }
 
     private static void adminLogin() {
         System.out.print("\nEnter Admin Password: ");
         String input = scanner.nextLine();
-        if (input.equals("admin123")) {
+        if (authService.verifyAdminPassword(input)) {
             System.out.println("Access granted. Welcome, Admin!");
             adminMenu();
         } else {
             System.out.println("Incorrect password. Access denied.");
         }
-
     }
 
     private static void adminMenu() {
@@ -196,9 +200,10 @@ public class Main {
             System.out.println("3. View All Rooms");
             System.out.println("4. Add Room");
             System.out.println("5. Cancel Any Booking");
-            System.out.println("0. Back to Main Menu");
+            System.out.println("6. Change Admin Password");
+            System.out.println("0. Log out Admin");
             System.out.print("Enter choice: ");
-            choice = getValidChoice(0, 5);
+            choice = getValidChoice(0, 6);
             switch (choice) {
                 case 0:
                     System.out.println("Returning to main menu...");
@@ -271,6 +276,24 @@ public class Main {
                     break;
                 case 5:
                     bookingManager.cancelBookingAdmin();
+                    break;
+                case 6:
+                    System.out.print("Enter current password: ");
+                    String current = scanner.nextLine();
+                    if (authService.verifyAdminPassword(current)) {
+                        System.out.print("Enter new password: ");
+                        String newPass = scanner.nextLine();
+                        System.out.print("Confirm new password: ");
+                        String confirm = scanner.nextLine();
+                        if (newPass.equals(confirm)) {
+                            authService.setAdminPassword(newPass);
+                        } else {
+                            System.out.println("Passwords do not match. Password not changed.");
+                        }
+                    } else {
+                        System.out.println("Current password incorrect.");
+                    }
+                    break;
             }
         } while(choice != 0);
 
@@ -279,7 +302,7 @@ public class Main {
     static {
         scanner = new Scanner(System.in);
         repo = new Repository();
-        bookingManager = new BookingManager(repo);
+        bookingManager = new BookingManager(repo, scanner);
         authService = new AuthenticationService(repo);
         loggedInUserId = -1;
         loggedInUserName = "";
