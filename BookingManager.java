@@ -242,6 +242,22 @@ public class BookingManager {
 
         if (confirm == 1) {
 
+            // ── ASK DISCOUNT RATE ──
+            double discountRate = 0.0;
+            while (true) {
+                System.out.print("Enter Discount Rate (0-100, e.g. 20 for 20%, or 0 for none): ");
+                try {
+                    double input = Double.parseDouble(scanner.nextLine().trim());
+                    if (input >= 0 && input <= 100) {
+                        discountRate = input / 100.0;
+                        break;
+                    }
+                    System.out.println("Discount must be between 0 and 100.");
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input. Please enter a valid number.");
+                }
+            }
+
             // ── ASK PAYMENT METHOD ──
             System.out.println("\n===== SELECT PAYMENT METHOD =====");
             System.out.println("1. Credit Card");
@@ -263,7 +279,7 @@ public class BookingManager {
                         System.out.println("Invalid input. Please enter a valid amount.");
                     }
                 }
-                payment = new CreditCardPayment(totalPrice, 0.0, creditLimit);
+                payment = new CreditCardPayment(totalPrice, discountRate, creditLimit);
 
             } else {
                 double cashAmount;
@@ -277,7 +293,7 @@ public class BookingManager {
                         System.out.println("Invalid input. Please enter a valid amount.");
                     }
                 }
-                payment = new CashPayment(totalPrice, 0.0, cashAmount);
+                payment = new CashPayment(totalPrice, discountRate, cashAmount);
             }
 
             // ── PROCESS PAYMENT ──
@@ -285,20 +301,16 @@ public class BookingManager {
 
             // ── ONLY SAVE BOOKING IF PAYMENT SUCCEEDED ──
             if (payment.isSuccessful()) {
-
-               double finalTotal = payment.getTotalPayable(); // ✅ OVERALL TOTAL HERE
-
+                double finalTotal = payment.getTotalPayable(); // ✅ OVERALL TOTAL HERE
                 repo.insertBooking(userId, roomId, date, time, duration, finalTotal);
-
                 System.out.printf("Booking confirmed! \nTotal Paid: %.2f%n", finalTotal);
-
             } else {
                 System.out.println("Booking was not saved due to payment failure.");
             }
 
         } else {
-           System.out.println("Booking cancelled. Returning to menu...");
-       }
+            System.out.println("Booking cancelled. Returning to menu...");
+        }
     }
 
     // ─────────────────────────────────────────
