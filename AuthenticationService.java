@@ -44,9 +44,8 @@ public class AuthenticationService {
             System.out.println(getEmailWarning(email));
             return;
         }
-        repo.insertUser(name, email, password, role);
+        repo.insertUser(name, email, PasswordUtil.hash(password), role);
     }
-
     // ─────────────────────────────────────────
     // LOGIN
     // ─────────────────────────────────────────
@@ -63,9 +62,8 @@ public class AuthenticationService {
             if (rs != null && rs.next()) {
                 String storedPassword = rs.getString("password");
                 String userName = rs.getString("name");
-                String role = rs.getString("role");
 
-                if (storedPassword.equals(password)) {
+                if (PasswordUtil.verify(password, storedPassword)){
                     System.out.println("Login successful!");
                     System.out.println("Welcome, " + userName + " You can now Book your WorkingSpace <3");
                     return rs.getInt("userId");
@@ -77,7 +75,27 @@ public class AuthenticationService {
             }
         } catch (SQLException e) {
             System.out.println("Login error: " + e.getMessage());
+        } finally {
+            try {
+                if (rs != null) rs.close();
+            } catch (SQLException e) {
+                System.out.println("Error closing ResultSet: " + e.getMessage());
+            }
         }
         return -1;
+    }
+
+    public boolean adminPasswordExists() {
+        return repo.getAdminPasswordHash() != null;
+    }
+
+    public void setAdminPassword(String newPassword) {
+        repo.setAdminPasswordHash(PasswordUtil.hash(newPassword));
+        System.out.println("Admin password set successfully.");
+    }
+
+    public boolean verifyAdminPassword(String input) {
+        String stored = repo.getAdminPasswordHash();
+        return stored != null && PasswordUtil.verify(input, stored);
     }
 }
